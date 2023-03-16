@@ -55,7 +55,7 @@ class LocationService: Service() {
 
     private fun start() {
         val notification = NotificationCompat.Builder(this, "location")
-            .setContentTitle("Tracking location...")
+            .setContentTitle("Current location...")
             .setContentText("Location: null")
             .setSmallIcon(R.drawable.ic_mytaxi)
             .setOngoing(true)
@@ -74,7 +74,7 @@ class LocationService: Service() {
                 updateLocationUseCase(currentLocation)
 
                 val updatedNotification = notification.setContentText(
-                    "Location: (${lat.toString().takeLast(3)}, ${long.toString().takeLast(3)})"
+                    "Time: $currentTime, Location: (${lat.toString().takeLast(3)}, ${long.toString().takeLast(3)})"
                 )
                 notificationManager.notify(1, updatedNotification.build())
             }

@@ -6,19 +6,28 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.location.Location
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
+import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import me.shakhriyor.mytaxihackaton.R
 import me.shakhriyor.mytaxihackaton.common.Constants.DEVICE_THEME
 import me.shakhriyor.mytaxihackaton.common.SharedPref
+import me.shakhriyor.mytaxihackaton.common.service.DefaultLocationClient
+import me.shakhriyor.mytaxihackaton.common.service.LocationClient
 import me.shakhriyor.mytaxihackaton.common.service.LocationService
+import me.shakhriyor.mytaxihackaton.data.model.CurrentLocation
 
 
 @AndroidEntryPoint

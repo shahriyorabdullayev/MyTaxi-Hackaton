@@ -1,6 +1,5 @@
 package me.shakhriyor.mytaxihackaton.presentation.fragments
 
-import android.content.Intent
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
@@ -13,6 +12,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import by.kirich1409.viewbindingdelegate.viewBinding
+import com.google.android.gms.location.LocationServices
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.*
@@ -29,16 +29,20 @@ import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListen
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.plugin.logo.logo
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import me.shakhriyor.mytaxihackaton.common.LocationPermissionHelper
 import me.shakhriyor.mytaxihackaton.R
 import me.shakhriyor.mytaxihackaton.common.Constants.DEVICE_THEME
 import me.shakhriyor.mytaxihackaton.common.Resource
 import me.shakhriyor.mytaxihackaton.common.SharedPref
+import me.shakhriyor.mytaxihackaton.common.service.DefaultLocationClient
+import me.shakhriyor.mytaxihackaton.common.service.LocationClient
 import me.shakhriyor.mytaxihackaton.data.model.CurrentLocation
 import me.shakhriyor.mytaxihackaton.databinding.FragmentMainBinding
 import me.shakhriyor.mytaxihackaton.presentation.viewmodels.MainViewModel
-import me.shakhriyor.mytaxihackaton.common.service.LocationService
 
 @AndroidEntryPoint
 class MainFragment : Fragment(R.layout.fragment_main) {
@@ -48,7 +52,11 @@ class MainFragment : Fragment(R.layout.fragment_main) {
     private var screenWidth: Int = 0
     private var screenHeight: Int = 0
 
+    private var zoom = 12.0
+
     private val viewModel: MainViewModel by viewModels()
+
+    private lateinit var locationClient:LocationClient
 
     private lateinit var locationPermissionHelper: LocationPermissionHelper
 
@@ -73,6 +81,14 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         override fun onMoveEnd(detector: MoveGestureDetector) {}
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        locationClient = DefaultLocationClient(
+            requireContext(),
+            LocationServices.getFusedLocationProviderClient(requireContext())
+        )
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         getScreenSize()
@@ -83,6 +99,15 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             btnLightning.setOnClickListener {  }
 
         }
+
+
+        locationClient.getLocation()
+                .catch { e -> e.printStackTrace() }
+                .onEach { location ->
+                    updateCamera(CurrentLocation(latitude = location.latitude, longitude = location.longitude))
+                }
+                .launchIn(lifecycleScope)
+
 
 
         onMapReady()
@@ -120,14 +145,18 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
 
         binding.btnPlus.setOnClickListener {
+            if (zoom < 18) {
+                zoom++
+                zoomControl(zoom)
+            }
 
         }
 
         binding.btnMinus.setOnClickListener {
-//            Intent(requireContext(), LocationService::class.java).apply {
-//                action = LocationService.ACTION_STOP
-//                requireActivity().startService(this)
-//            }
+            if (zoom>0) {
+                zoom--
+                zoomControl(zoom)
+            }
         }
 
     }
@@ -143,7 +172,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
 
     private fun updateCamera(currentLocation: CurrentLocation) {
-        val mapAnimationOptions = MapAnimationOptions.Builder().duration(3000L).build()
+        zoom = 12.0
+        val mapAnimationOptions = MapAnimationOptions.Builder().duration(2500L).build()
         binding.mapView.camera.easeTo(
             CameraOptions.Builder()
                 .center(Point.fromLngLat(currentLocation.longitude!!, currentLocation.latitude!!))
@@ -156,6 +186,19 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         initLocationComponent()
     }
 
+    private fun zoomControl(zoom: Double) {
+        val mapAnimationOptions = MapAnimationOptions.Builder().duration(1500L).build()
+        binding.mapView.camera.easeTo(
+            CameraOptions.Builder()
+                .zoom(zoom)
+                .padding(EdgeInsets(0.0,
+                    0.0, 0.0, 0.0))
+                .build(),
+            mapAnimationOptions
+
+        )
+    }
+
     private fun onMapReady() {
         binding.mapView.logo.updateSettings {
             enabled = false
@@ -166,13 +209,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         binding.mapView.compass.updateSettings {
             enabled = false
         }
-        binding.mapView.getMapboxMap().setCamera(
-            CameraOptions.Builder()
-                .center(Point.fromLngLat(69.240562, 41.311081))
-                .zoom(12.0)
-                .build()
-        )
-
         if (SharedPref(requireContext()).getBoolean(DEVICE_THEME)) {
             binding.mapView.getMapboxMap().loadStyleUri(
                 Style.MAPBOX_STREETS
@@ -209,7 +245,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 ),
                 shadowImage = AppCompatResources.getDrawable(
                     requireContext(),
-                    R.drawable.ic_car,
+                    R.drawable.ic_car
                 ),
                 scaleExpression = interpolate {
                     linear()
@@ -274,6 +310,8 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         super.onLowMemory()
         binding.mapView.onLowMemory()
     }
+
+
 
 //    override fun onDestroy() {
 //        super.onDestroy()
